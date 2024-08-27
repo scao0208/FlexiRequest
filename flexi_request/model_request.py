@@ -18,7 +18,8 @@ help_str = '''Parameters:
   a2 (a): (inner/high-pass) skewness, 
   g: granularity, number of bins.(default: 10)
   n: number of samples
-  b: 
+  b1: second parameters of outer distribution
+  b2: second parameters of inner distribution
   duration: range of samples (in seconds)
   offset: offset of samples (delay in seconds)
   f: save/load file location (default: ./plan.bin)
@@ -191,102 +192,102 @@ def main():
     def get_distribution(name: str):
         nonlocal argv
         d = 'zipf'
-        match argv.pop(0).lower(): 
-            case a if a.startswith('g') or a.startswith('n'):
+        a =  argv.pop(0).lower()
+        if a.startswith('g') or a.startswith('n'):
                 d = 'normal'
-            case a if a.startswith('z'):
+        elif a.startswith('z'):
                 d = 'zipf'
-            case a if a.startswith('u'):
+        elif a.startswith('u'):
                 d = 'uniform'
-            case a if a.startswith('p'):
+        elif a.startswith('p'):
                 d = 'poisson'
-            case a if a.startswith('i'):
+        elif a.startswith('i'):
                 d = 'inv_gaussian'
-            case _:
-                return
+        else:
+            return
         exec(f'parameters.{name} = distribution_t.{d}')
 
     while len(argv) > 0:
         arg = argv.pop(0)
-        match arg.lower().strip():
-            case '-o' | '--outer':
-                get_distribution('outer')
-            case '-i' | '--inner':
-                get_distribution('inner')
-            case '-a1' | '--a1' | '-mu' | '--mu':
-                try: parameters.a1 = float(argv.pop(0))
-                except Exception as e: print(e)
-            case '-a2' | '--a2' | '-a' | '--a':
-                try: parameters.a2 = float(argv.pop(0))
-                except Exception as e: print(e)
-            case '-b1' | '--b1':
-                try: 
-                    b1 = float(argv.pop(0))
-                    if b1 >= 0 and b1 <= 1: 
-                        parameters.b1 = b1
-                except Exception as e: print(e)
-            case '-b2' | '--b2':
-                try: 
-                    b2 = float(argv.pop(0))
-                    if b2 >= 0 and b2 <= 1: 
-                        parameters.b2 = b2
-                except Exception as e: print(e)
-            case '-b3' | '--b3':
-                try: 
-                    b3 = float(argv.pop(0))
-                    if b3 > 0 : 
-                        parameters.b3 = b3
-                except Exception as e: print(e)
-            case '-b4' | '--b4':
-                try: 
-                    b4 = float(argv.pop(0))
-                    if b4 > 0 : 
-                        parameters.b4 = b4
-                except Exception as e: print(e)
-            case '-n' | '--n':
-                try: parameters.n = int(argv.pop(0))
-                except Exception as e: print(e)
-            case '-d' | '--duration':
-                try: parameters.duration = int(argv.pop(0))
-                except Exception as e: print(e)
-            case '-off' | '--offset': 
-                try: parameters.offset = float(argv.pop(0))
-                except Exception as e: print(e)
-            case '-g' | '--granularity':
-                try: parameters.granularity = int(argv.pop(0))
-                except Exception as e: print(e)
-            case '-s1' :
-                try: 
-                    shfl = float(argv.pop(0))
-                    if shfl >= 0 : 
-                        parameters.s1 = shfl
-                except Exception as e: print(e)
-            case '-s' | '--shuffle':
-                try: 
-                    shfl = float(argv.pop(0))
-                    if shfl >= 0: 
-                        parameters.shfl = shfl
-                except Exception as e: print(e)
-            case '-m' | '--mode':
-                try: 
-                    match argv.pop(0).lower().strip()[:3]:
-                        case 'get' | '0': 
-                            parameters.mode = mode_t.get_distribution
-                        case 'exec' | 'issue' | 'gen' | '1':
-                            parameters.mode = mode_t.generate
-                        case s:
-                            raise ValueError(f'Invalid mode {s}')
-                except Exception as e: print(e)
-            case '-f' | '--f':
+        x = arg.lower().strip()
+        if x in ['-o', '--outer']:
+            get_distribution('outer')
+        elif x in ['-i', '--inner']:
+            get_distribution('inner')
+        elif x in ['-a1', '--a1', '-mu', '--mu']:
+            try: parameters.a1 = float(argv.pop(0))
+            except Exception as e: print(e)
+        elif x in ['-a2', '--a2', '-a', '--a']:
+            try: parameters.a2 = float(argv.pop(0))
+            except Exception as e: print(e)
+        elif x in ['-b1', '--b1']:
+            try: 
+                b1 = float(argv.pop(0))
+                if b1 >= 0 and b1 <= 1: 
+                    parameters.b1 = b1
+            except Exception as e: print(e)
+        elif x in ['-b2', '--b2']:
+            try: 
+                b2 = float(argv.pop(0))
+                if b2 >= 0 and b2 <= 1: 
+                    parameters.b2 = b2
+            except Exception as e: print(e)
+        elif x in ['-b3', '--b3']:
+            try: 
+                b3 = float(argv.pop(0))
+                if b3 > 0 : 
+                    parameters.b3 = b3
+            except Exception as e: print(e)
+        elif x in ['-b4', '--b4']:
+            try: 
+                b4 = float(argv.pop(0))
+                if b4 > 0 : 
+                    parameters.b4 = b4
+            except Exception as e: print(e)
+        elif x in ['-n', '--n']:
+            try: parameters.n = int(argv.pop(0))
+            except Exception as e: print(e)
+        elif x in ['-d', '--duration']:
+            try: parameters.duration = int(argv.pop(0))
+            except Exception as e: print(e)
+        elif x in ['-off', '--offset']: 
+            try: parameters.offset = float(argv.pop(0))
+            except Exception as e: print(e)
+        elif x in ['-g', '--granularity']:
+            try: parameters.granularity = int(argv.pop(0))
+            except Exception as e: print(e)
+        elif x == '-s1' :
+            try: 
+                shfl = float(argv.pop(0))
+                if shfl >= 0 : 
+                    parameters.s1 = shfl
+            except Exception as e: print(e)
+        elif x in ['-s', '--shuffle']:
+            try: 
+                shfl = float(argv.pop(0))
+                if shfl >= 0: 
+                    parameters.shfl = shfl
+            except Exception as e: print(e)
+        elif x in ['-m', '--mode']:
+            try: 
+                arg_pop = argv.pop(0).lower().strip()[:3]
+                if arg_pop in ['get', '0']: 
+                    parameters.mode = mode_t.get_distribution
+                elif arg_pop in ['exec', 'issue', 'gen', '1']:
+                    parameters.mode = mode_t.generate
+                else:
+                    raise ValueError(f'Invalid mode {arg_pop}')
+            except Exception as e: print(e)
+        elif x in ['-f', '--f']:
                 try: parameters.f = argv.pop(0)
                 except Exception as e: print(e)
-            case '-h' | '--help':
-                print_help = True
-            case '-v' | '--verbose':
-                console_debug = print
-            case s:
-                print(f'Invalid option: {s}')
-                print_help = True
+        elif x in ['-h', '--help']:
+            print_help = True
+        elif x in ['-v', '--verbose']:
+            console_debug = print
+        else:
+            print(f'Invalid option: {x}')
+            print_help = True
     if print_help: 
         print(help_str)
         
