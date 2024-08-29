@@ -8,7 +8,7 @@ plan : Optional[dump_t] = None
 save_root : str = './saved_plans'
 vis_parameters = {
     'bins': 9, 
-    'vis': 1,  
+    'vis': 2,  
     'bw': 2.5
 }
 

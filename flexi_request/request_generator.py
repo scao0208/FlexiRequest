@@ -22,6 +22,7 @@ On the client side, run:
         --endpoint /generate_stream
     to the end of the command above.
 """
+#%%
 import argparse
 import asyncio
 import json
@@ -34,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
-from model_request import *
+import model_request as mq
 
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -214,6 +215,25 @@ def sample_random_requests(
             (prompt, int(input_lens[i]), int(output_lens[i])))
 
     return input_requests
+
+args0 = [
+    "-o", "n",
+    "-i", "z",
+    "-a1", "1.75",
+    "-a2", "22", 
+    "-n", "10000", 
+    "-d", "50000", 
+    "-g", "10"
+]
+
+plan = mq.main(args0)
+#%%
+print(plan, len(plan))
+max(plan)
+min(plan)
+#%%
+
+
 
 async def get_request(
     input_requests: List[Tuple[str, int, int]],
@@ -548,7 +568,13 @@ def main(args: argparse.Namespace):
             disable_tqdm=args.disable_tqdm,
             distribution=args.distribution,
             num_prompts=args.num_prompts,
-            mix_ratios=args.mix_ratios
+            mix_ratios=args.mix_ratios,
+            o_d = args.o_d,
+            i_d = args.i_d,
+            a1 = args.a1,
+            b1 = args.b1,
+            a2 = args.a2,
+            b2 = args.b2
         ))
 
     # Save config and results to json
@@ -566,7 +592,13 @@ def main(args: argparse.Namespace):
         result_json["num_prompts"] = args.num_prompts
         result_json["distribution"] = args.distribution
         result_json["mix_ratios"] = args.mix_ratios
-
+        result_json["o_d"] = args.o_d
+        result_json["i_d"] = args.i_d
+        result_json["a1"] = args.a1
+        result_json["b1"] = args.b1
+        result_json["a2"] = args.a2,
+        result_json["b2"] = args.b2
+        
         # Metadata
         if args.metadata:
             for item in args.metadata:
@@ -595,6 +627,12 @@ def main(args: argparse.Namespace):
         with open(file_name, "w") as outfile:
             json.dump(result_json, outfile)
 
+#%%
+
+
+
+
+#%%
 
 if __name__ == "__main__":
     parser = FlexibleArgumentParser(
@@ -728,6 +766,32 @@ if __name__ == "__main__":
         "exponential, uniform, poisson, and skewed"
     )
     parser.add_argument(
+        "-o",
+        type=str,
+        default="g",
+        help="to determine outer distribution we used for request arrival time"
+        "Uniform, Gaussian, Zipf, and Poisson"
+    )
+    parser.add_argument(
+        "-i",
+        type=str,
+        default="z",
+        help="to determine inner distribution we used for request arrival time"
+        "Uniform, Gaussian, Zipf, and Poisson"
+    )
+    parser.add_argument(
+        "-a1",
+        type=float,
+        default="1.75",
+        help="parameters of outer distribution we used for request arrival time"
+    )
+    parser.add_argument(
+        "-b1",
+        type=float,
+        default="1.75",
+        help="parameters of outer distribution we used for request arrival time"
+    )
+    parser.add_argument(
         "--mix_ratios",
         type=Tuple[float, float, float],
         default=[0.33, 0.33, 0.34],
@@ -776,4 +840,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    
     main(args)
+# %%

@@ -154,6 +154,8 @@ def gen_distribution():
         for i in plan:
             gins.write(f'{i}\n')
             
+        return plan
+            
 
 def generate_impl(workload : Iterable[Callable]): # submit workload functions as a list of functions
     time.sleep(parameters.offset) # sleep off the offset
@@ -180,10 +182,14 @@ def generate(workload : Iterable[Callable], plan_path: str):
         parameters = dump.parameters
         generate_impl(workload)
         
-def main():
+def main(argv=None):
     import sys, copy
     init()
-    argv = copy.deepcopy(sys.argv)
+    
+    if argv is None: 
+        argv = copy.deepcopy(sys.argv)
+    else:
+        argv = copy.deepcopy(argv)
     global parameters, console_debug
     
     print_help = False
