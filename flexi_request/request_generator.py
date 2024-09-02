@@ -2,27 +2,44 @@
 
 On the server side, run one of the following commands:
     vLLM OpenAI API server
-    vllm serve <your_model> \
-        --swap-space 16 \
-        --disable-log-requests
-
+    CUDA_VISIBLE_DEVICES=0,1 \
+    vllm.entrypoints.openai.api_server \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --max-model-len 8000 \
+        --model <your_model> eg:models/mistral \
+        --tensor-parallel 2 \
+        --disable-log-requests \
+        --swap-space 16 >benchmarks/server_output.log
+    
     (TGI backend)
     ./launch_tgi_server.sh <your_model> <max_batch_total_tokens>
 
-On the client side, run:
-    python benchmarks/benchmark_serving.py \
-        --backend <backend> \
-        --model <your_model> \
+On the cient side, run:
+    pythn ./flexi_request/request_generator.py \
+        --backend vllm \
+        --port 8000 \
+        --endpoint /v1/completions \
+        --model models/mistral \
         --dataset-name sharegpt \
-        --dataset-path <path to dataset> \
-        --request-rate <request_rate> \ # By default <request_rate> is inf
-        --num-prompts <num_prompts> # By default <num_prompts> is 1000
-
+        --dataset-path /home/usr/Documents/vllm/ShareGPT_V3_unfiltered_cleaned_split.json \
+        --request-rate 10 # By default <request_rate> is inf \
+        --num-prompts <num_prompts> # By default <num_prompts> is 1000 \
+        --distribution poisson \
+        --save-result \
+        -o z \
+        -i z \
+        -a1 22 \
+        -b1 0.1 \
+        -a2 2.2 \
+        -b2 0.01 \
+        -g 10 
+        
     when using tgi backend, add
         --endpoint /generate_stream
     to the end of the command above.
 """
-#%%
+
 import argparse
 import asyncio
 import json
@@ -30,6 +47,7 @@ import sys
 import os
 import random
 import time
+import itertools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -216,34 +234,16 @@ def sample_random_requests(
 
     return input_requests
 
-args0 = [
-    "-o", "n",
-    "-i", "z",
-    "-a1", "1.75",
-    "-a2", "22", 
-    "-n", "10000", 
-    "-d", "50000", 
-    "-g", "10"
-]
-
-plan = mq.main(args0)
-#%%
-print(plan, len(plan))
-max(plan)
-min(plan)
-#%%
-
-
 
 async def get_request(
     input_requests: List[Tuple[str, int, int]],
     request_rate: float,
     num_prompts: int, 
-    mix_ratios: Tuple[float, float, float] = (0.33, 0.33, 0.34),  # Ratio for uniform, poisson, zipf
-    distribution: str = "poisson"
+    mix_ratios: Tuple[float, float, float]=(0.33, 0.33, 0.34),  # Ratio for uniform, poisson, zipf
+    distribution: str="poisson",
 ) -> AsyncGenerator[Tuple[str, int, int], None]:
     input_requests = iter(input_requests)
-    
+
     for request in input_requests:
         yield request
 
@@ -273,8 +273,6 @@ async def get_request(
                 interval = np.random.exponential(1.0 / request_rate)
             elif dist_choice == "zipf":
                 interval = np.random.zipf(1.5) / num_prompts
-                 
-        
         else:
             raise ValueError(f"Unknown distribution type: {distribution}")
         
@@ -354,14 +352,44 @@ async def benchmark(
     distribution: str,
     num_prompts: int, 
     disable_tqdm: bool,
-    mix_ratios: Tuple[float, float, float]
+    mix_ratios: Tuple[float, float, float],
+    o_d: str,
+    i_d:str,
+    a1: float,
+    a2: float,
+    b1: float,
+    b2: float,
+    g: int
 ):
+    d = num_prompts / request_rate
+    
+    args0 = [
+        "-o", o_d,
+        "-i", i_d,
+        "-a1", a1,
+        "-a2", a2, 
+        "-b1", b1, 
+        "-b2", b2,
+        "-n", num_prompts, 
+        "-d", d,
+        "-g", g
+    ]
+
+    plan = mq.main(args0)
+    # add the arrival time to each request
+    input_list = list()
+    for input in input_requests:
+        i = input_requests.index(input)
+        input_list.append([input])
+        input_list[i].append(plan[i])
+    
     if backend in ASYNC_REQUEST_FUNCS:
         request_func = ASYNC_REQUEST_FUNCS[backend]
     else:
         raise ValueError(f"Unknown backend: {backend}")
 
     print("Starting initial single prompt test run...")
+    # Following is just for a single test run 
     test_prompt, test_prompt_len, test_output_len = input_requests[0]
     test_input = RequestFuncInput(
         model=model_id,
@@ -382,24 +410,36 @@ async def benchmark(
     print(f"Traffic request rate: {request_rate}")
 
     pbar = None if disable_tqdm else tqdm(total=len(input_requests))
-
     benchmark_start_time = time.perf_counter()
+
     tasks: List[asyncio.Task] = []
-    async for request in get_request(input_requests, request_rate, num_prompts, mix_ratios, distribution):
-        prompt, prompt_len, output_len = request
-        request_func_input = RequestFuncInput(
-            model=model_id,
-            prompt=prompt,
-            api_url=api_url,
-            prompt_len=prompt_len,
-            output_len=output_len,
-            best_of=best_of,
-            use_beam_search=use_beam_search,
-        )
-        tasks.append(
-            asyncio.create_task(
-                request_func(request_func_input=request_func_input,
-                             pbar=pbar)))
+    time_list = sorted(list(set(plan)))
+    num_per_interval = [plan.count(time_list[i]) for i in range(len(time_list))]
+    cumulative_list = [0] + list(itertools.accumulate(num_per_interval))
+    interval_list = [time_list[i+1] - time_list[i] for i in range(len(time_list) - 1)]
+    interval_list.append(interval_list[-1])
+
+      
+    for i in range(len(num_per_interval)):
+        for j in range(num_per_interval[i]):
+            poisson_req_rate = num_per_interval[i] / interval_list[i]
+            # each request sleep for the get_request() value    
+            async for request in get_request(input_requests[cumulative_list[i]:cumulative_list[i+1]], poisson_req_rate, num_per_interval[i], mix_ratios, distribution):
+                prompt, prompt_len, output_len = request
+                request_func_input = RequestFuncInput(
+                    model=model_id,
+                    prompt=prompt,
+                    api_url=api_url,
+                    prompt_len=prompt_len,
+                    output_len=output_len,
+                    best_of=best_of,
+                    use_beam_search=use_beam_search,
+                )
+            # here is the progress bar updated 
+            tasks.append(
+                asyncio.create_task(
+                    request_func(request_func_input=request_func_input,
+                                pbar=pbar)))
     outputs: List[RequestFuncOutput] = await asyncio.gather(*tasks)
 
     if pbar is not None:
@@ -569,12 +609,13 @@ def main(args: argparse.Namespace):
             distribution=args.distribution,
             num_prompts=args.num_prompts,
             mix_ratios=args.mix_ratios,
-            o_d = args.o_d,
-            i_d = args.i_d,
-            a1 = args.a1,
-            b1 = args.b1,
-            a2 = args.a2,
-            b2 = args.b2
+            o_d=args.o_d,
+            i_d=args.i_d,
+            a1=args.a1,
+            b1=args.b1,
+            a2=args.a2,
+            b2=args.b2,
+            g=args.g
         ))
 
     # Save config and results to json
@@ -598,6 +639,7 @@ def main(args: argparse.Namespace):
         result_json["b1"] = args.b1
         result_json["a2"] = args.a2,
         result_json["b2"] = args.b2
+        result_json["g"] = args.g
         
         # Metadata
         if args.metadata:
@@ -626,13 +668,6 @@ def main(args: argparse.Namespace):
             file_name = os.path.join(args.result_dir, file_name)
         with open(file_name, "w") as outfile:
             json.dump(result_json, outfile)
-
-#%%
-
-
-
-
-#%%
 
 if __name__ == "__main__":
     parser = FlexibleArgumentParser(
@@ -766,14 +801,14 @@ if __name__ == "__main__":
         "exponential, uniform, poisson, and skewed"
     )
     parser.add_argument(
-        "-o",
+        "-o_d",
         type=str,
         default="g",
         help="to determine outer distribution we used for request arrival time"
         "Uniform, Gaussian, Zipf, and Poisson"
     )
     parser.add_argument(
-        "-i",
+        "-i_d",
         type=str,
         default="z",
         help="to determine inner distribution we used for request arrival time"
@@ -783,13 +818,31 @@ if __name__ == "__main__":
         "-a1",
         type=float,
         default="1.75",
-        help="parameters of outer distribution we used for request arrival time"
+        help="(outer/low-pass) skewness for zipf, standard deviation for gaussian, discarded"
+    )
+    parser.add_argument(
+        "-a2",
+        type=float,
+        default="1.75",
+        help="(inner/high-pass) skewness,"
     )
     parser.add_argument(
         "-b1",
         type=float,
-        default="1.75",
-        help="parameters of outer distribution we used for request arrival time"
+        default="0",
+        help="second parameters of outer distribution"
+    )
+    parser.add_argument(
+        "-b2",
+        type=float,
+        default="0",
+        help="second parameters of inner distribution"
+    )
+    parser.add_argument(
+        "-g",
+        type=int,
+        default="10",
+        help="number of gins"
     )
     parser.add_argument(
         "--mix_ratios",
@@ -842,4 +895,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     main(args)
-# %%

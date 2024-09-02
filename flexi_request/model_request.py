@@ -65,6 +65,7 @@ def controlled_shuffle(data, max_shift):
         
 def gen_distribution():
     global plan
+    global weights
     
     '''generate the distribution by parameters, bins, and scale,
         the random variable is the number of requests in each bin
@@ -97,8 +98,8 @@ def gen_distribution():
     weights = np.round(weights).astype(np.int32)
     weights[-1] = max(parameters.n - np.sum(weights[:-1]), 0)
     console_debug(f'weights: \n{weights}')
-    offsets = (np.array(range(0, parameters.granularity), dtype=np.float64)/parameters.granularity) * parameters.duration
-    duration_per_segment = parameters.duration / parameters.granularity
+    offsets = (np.array(range(0, parameters.granularity + 1), dtype=np.float64)/(parameters.granularity + 1)) * parameters.duration
+    duration_per_segment = parameters.duration / (parameters.granularity + 1)
     
     
     def postprocess(data, b):
@@ -154,6 +155,11 @@ def gen_distribution():
         for i in plan:
             gins.write(f'{i}\n')
             
+            
+        return plan
+            
+
+
         return plan
             
 
@@ -185,8 +191,7 @@ def generate(workload : Iterable[Callable], plan_path: str):
 def main(argv=None):
     import sys, copy
     init()
-    
-    if argv is None: 
+    if argv is None:
         argv = copy.deepcopy(sys.argv)
     else:
         argv = copy.deepcopy(argv)
@@ -309,6 +314,7 @@ def main(argv=None):
             plan = dump.plan
             parameters = dump.parameters
             generate(workload=[lambda: console_log(f'executing {i}') for i in range(parameters.n)], plan_path=parameters.f)
-            
+    
+    return plan        
 if __name__ == "__main__":
     main()
