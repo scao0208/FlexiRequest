@@ -11,8 +11,10 @@ For multi-tenat LM inference, it lacks efficient methods to balance the immediat
 
 ## Experiments
 
-The follwing is 
+The follwing metrics are under different distribution of request rate seperately. Uniform Distribution influences the most of system performance. But if we increase the request rate highly, the influence doesn't matter as before. 
 ![alt text](result_curve/compare_single_distribution.png)
+
+
 
 Generate different distribution requests referring to the paper Vexless: A Serverless Vector Data Management System Using Cloud Functions
  (https://dl.acm.org/doi/10.1145/3654990). 
@@ -22,10 +24,15 @@ Generate different distribution requests referring to the paper Vexless: A Serve
  
 
 Low Bursty 
+
 ![alt text](result_curve/oinverseG_inormal.png)
+
 Medium Bursty 
+
 ![alt text](result_curve/ozip_iuni.png)
+
 High Bursty 
+
 ![alt text](result_curve/ozip_izip.png)
 
 ## Installation
