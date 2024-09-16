@@ -4,13 +4,117 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
             "python": "/home/sycao/miniconda3/envs/vllm/bin/python",
-            "program": "./flexi_request/layer_manage.py",
-            "console": "integratedTerminal"
+            "program": "./flexi_request/request_generator.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--backend", "vllm", 
+                "--port",  "8000", 
+                "--endpoint", "/v1/completions",
+                "--model", "models/Qwen", 
+                "--dataset-name", "sharegpt",
+                "--dataset-path", "./data/ShareGPT_V3_unfiltered_cleaned_split.json",
+                "--request-rate", "10",
+                "--num-prompts", "1000",
+                "--distribution", "poisson",
+                "--save-result", 
+                "-o", "z",
+                "-i", "z",
+                "-a1", "22",
+                "-b1", "0.1",
+                "-a2", "2.2",
+                "-b2", "0.01",
+                "-g", "10" 
+            ]
+        },
+
+        {
+            "name": "benchmark_serving.py",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/sycao/miniconda3/envs/vllm/bin/python",
+            "program": "./flexi_request/benchmark_serving.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--backend", "vllm", 
+                "--port",  "8000", 
+                "--endpoint", "/v1/completions",
+                "--model", "models/mistral", 
+                "--dataset-name", "sharegpt",
+                "--dataset-path", "/home/sycao/Documents/vllm/ShareGPT_V3_unfiltered_cleaned_split.json",
+                "--request-rate", "10",
+                "--num-prompts", "1000",
+                "--distribution", "mix", 
+            ]
+        },
+
+        {
+            "name": "Launch vLLM API server",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/sycao/miniconda3/envs/vllm/bin/python",
+            "program": "./third_party/vllm/vllm/entrypoints/openai/api_server.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--host", "0.0.0.0",
+                "--port", "8000",
+                "--max-model-len", "8000",
+                "--model", "models/mistral",
+                "--tensor-parallel", "2",
+                "--disable-log-requests",
+                "--swap-space", "16"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0,1"
+            },
+        },
+        {
+            "name": "test workload main",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/sycao/miniconda3/envs/punica/bin/python",
+            "program": "./flexi_request/model_request.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-o", "z",
+                "-i", "z",
+                "-a1", "22",
+                "-b1", "0.1",
+                "-a2", "2.2",
+                "-b2", "0.01",  
+                "-n", "1000", 
+                "-d", "500", 
+                "-g", "10"
+            ]
+        },
+
+        {
+            "name": "test vis_plan.py",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/home/sycao/miniconda3/envs/punica/bin/python",
+            "program": "./flexi_request/vis_plan.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-i",
+                "-vis", "1",
+                "-bins", "9"   
+            ]
+        },   
+        
+    ],
+    "compounds": [
+        {
+        "name": "Compound",
+        "configurations": ["test workload main", "test vis_plan.py"],
+        // "preLaunchTask": "test workload main",
+        "stopAll": true
         }
+    
     ]
 }
