@@ -1,5 +1,7 @@
 ## Flexible Batch of Immediate and Deferred Requests
 
+RA work @ S-Lab at NTU
+
 ## Motivation
 
 BatchAPI: OpenAI's Batch API allows you to send asynchronous groups of requests at a 50% lower cost, with access to a dedicated pool offering significantly higher rate limits and guaranteed response times within 24 hours. https://platform.openai.com/docs/guides/batch
