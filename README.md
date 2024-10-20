@@ -8,7 +8,7 @@ BatchAPI: OpenAI's Batch API allows you to send asynchronous groups of requests 
 
 Nowadays, there are many different demands of requests. Immediate requests, also real-time, are popular in chatbox, conversation, text generation, code generation. Deferred requests (e.g. BatchAPI requests) process multiple requests at once, typically in a delayed or asynchronous manner, making them ideal for use cases that can tolerate slower response times or need high-throughput processing, which are popular in: text-to-image, image-to-text, video-to-text, and so on. 
 
-For multi-tenat LM inference, it lacks efficient methods to balance the immediate requests and deferred requests. So we want to redesign a request batch strategy, a new CUDA kernel, and scheduling policies to accelerate inference mix requests under different LLM and VLM. 
+For multi-tenant LM inference, it lacks efficient methods to balance the immediate requests and deferred requests. So we want to redesign a request batch strategy, a new CUDA kernel, and scheduling policies to accelerate inference mix requests under different LLM and VLM. 
 
 
 ## Experiments
